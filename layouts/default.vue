@@ -58,9 +58,7 @@
       </v-btn>
     </v-app-bar>
     <v-content>
-      <v-container>
-        <nuxt />
-      </v-container>
+      <nuxt />
     </v-content>
     <v-navigation-drawer
       v-model="rightDrawer"
@@ -79,12 +77,6 @@
         </v-list-item>
       </v-list>
     </v-navigation-drawer>
-    <v-footer
-      :fixed="fixed"
-      app
-    >
-      <span>&copy; 2019</span>
-    </v-footer>
   </v-app>
 </template>
 

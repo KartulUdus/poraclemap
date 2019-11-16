@@ -17,7 +17,8 @@
     "fastify": "^1.13.3",
     "nuxt": "^2.0.0",
     "nuxt-leaflet": "0.0.19",
-    "vue-geolocation-api": "^0.1.17"
+    "vue-geolocation-api": "^0.1.17",
+    "vue-loading-overlay": "^3.2.0"
   },
   "devDependencies": {
     "nodemon": "^1.18.9",

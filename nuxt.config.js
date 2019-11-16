@@ -20,7 +20,7 @@ module.exports = {
   /*
   ** Customize the progress-bar color
   */
-  loading: { color: '#fff' },
+  loading: '~/components/loading.vue',
   /*
   ** Global CSS
   */
@@ -46,7 +46,8 @@ module.exports = {
     // Doc: https://axios.nuxtjs.org/usage
     '@nuxtjs/axios',
     'nuxt-leaflet',
-    'vue-geolocation-api/nuxt'
+    'vue-geolocation-api/nuxt',
+    'vue-loading-overlay'
   ],
 
   geolocation: {

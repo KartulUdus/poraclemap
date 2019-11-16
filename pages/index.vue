@@ -9,21 +9,20 @@
             justify="center"
             no-gutters
           >
-            <v-col md="auto">
-              <v-card
-                class="pa-2"
-                outlined
-                tile
-              >
-                <v-text-field
-                  id="searchBox"
-                  v-model="searchString"
-                  @keyup.enter="search()"
-                  class="search"
-                  label="search"
-                  filled
-                />
-              </v-card>
+            <v-col class="pa-2 search" md="auto">
+              <v-text-field
+                id="searchBox"
+                v-model="searchString"
+                @keyup.enter="search()"
+                label="search"
+                filled
+                inline
+              />
+            </v-col>
+            <v-col class="pa-3 search" md="auto">
+              <v-btn v-on:click="search()" right color="green">
+                Go
+              </v-btn>
             </v-col>
           </v-row>
           <span v-if="$geolocation.loading">        Loading location...</span>
@@ -61,10 +60,14 @@
         >
           <v-list rounded>
             <v-list-item-group color="primary">
-              <v-list-item>
-                <input ref="myFile" v-on:change="selectedFile()" type="file">
-              </v-list-item>
-
+              <v-file-input
+                ref="myFile"
+                v-on:change="selectedFile()"
+                v-model="files"
+                dense
+                multiple
+                placeholder="Upload existing geofence"
+              />
               <v-list-item
                 v-for="fence in geofences"
                 v-bind:key="fence.name"
@@ -77,18 +80,40 @@
 
         <l-tile-layer url="https://tiles.poracle.world/tile/klokantech-basic/{z}/{x}/{y}/2/png" />
       </l-map>
+      <!-- error message snackbar -->
+      <v-snackbar
+        v-model="error"
+        :timeout="3000"
+        :top="true"
+        color="red"
+      >
+        {{ errorMsg }}
+        <v-btn
+          @click="snackbar = false"
+          color="black"
+          text
+        >
+          Close
+        </v-btn>
+      </v-snackbar>
 
-      <a ref="currentAreaPopup">
-            <v-text-field
-              v-model="minStep"
-              label="min step"
-              type="number"
-              min="0"
-              max="10000"
-              class="popup flex"
-            />
-            <v-btn class="flex" v-on:click="addGeofence(currentResult)">add area</v-btn>
-      </a>
+      <!-- area popup -->
+      <v-row ref="currentAreaPopup">
+        <v-col>
+          step
+          <input
+            v-model="minStep"
+            :min="0"
+            :max="10000"
+            type="number"
+            class="popup"
+            inline
+          >
+          <v-btn v-on:click="addGeofence(currentResult)" right>
+            add area
+          </v-btn>
+        </v-col>
+      </v-row>
     </client-only>
   </div>
 </template>
@@ -97,6 +122,7 @@
 import Axios from 'axios'
 import Loading from 'vue-loading-overlay'
 import 'vue-loading-overlay/dist/vue-loading.css'
+
 let L = { icon () {} }
 if (process.browser) { L = require('leaflet') }
 export default {
@@ -107,9 +133,12 @@ export default {
   data () {
     return {
       searchString: '',
+      files: [],
       foundAreas: [],
       geofences: [],
       currentResult: {},
+      error: false,
+      errorMsg: '',
       minStep: 50,
       rawAreaLayer: { clearLayers: () => {} },
       rawGeofenceLayer: { clearLayers: () => {} },
@@ -183,9 +212,13 @@ export default {
 
     selectedFile () {
       this.isLoading = true
-      const file = this.$refs.myFile.files[0]
+      const file = this.files[0]
       this.isLoading = false
-      if (!file || !(file.type === 'text/plain' || file.type === 'application/json')) { return }
+      if (!file || !(file.type === 'text/plain' || file.type === 'application/json')) {
+        this.errorMsg = 'Can\'t Open file for parsing'
+        this.error = true
+        return
+      }
 
       const reader = new FileReader()
       reader.readAsText(file, 'UTF-8')
@@ -206,9 +239,18 @@ export default {
           areaNames.forEach((key, idx) => { result.push({ name: key, color: `#${Math.floor(Math.random() * 16777215).toString(16)}`, id: idx.toString(), path: areaLocs[idx] }) })
           updFile = result
         }
-        if (!updFile.length) { console.error('no areas in geofence file') }
+        if (!updFile.length) {
+          this.errorMsg = 'No geofences in file'
+          this.error = true
+          console.error('no areas in geofence file')
+          return
+        }
         updFile.forEach((area) => {
-          if (!area.name || !area.color || !area.id.toString() || !area.path || !area.path.length) { console.error('unhappy with geofence file') }
+          if (!area.name || !area.color || !area.id.toString() || !area.path || !area.path.length) {
+            this.errorMsg = 'geofence file dosn\'t have needed fields'
+            this.error = true
+            console.error('geofence file dosn\'t have needed fields')
+          }
         })
         updFile.filter(area => !this.geofences.find(a => a.name === area.name))
         this.geofences = [...this.geofences, ...updFile]
@@ -216,11 +258,20 @@ export default {
       }
       reader.onerror = (evt) => {
         console.error(evt)
+        this.errorMsg = 'geofence file dosn\'t have needed fields'
+        this.error = true
       }
     },
 
     addGeofence () {
-      console.log('potato')
+      console.log(this.currentResult)
+      if (!this.currentResult.geojson.type || !(this.currentResult.geojson.type === 'Polygon' || this.currentResult.geojson.type === 'MultiPolygon')) {
+        console.error('can\'t make a geofence of this result')
+        this.errorMsg = 'can\'t make a geofence of this result'
+        this.error = true
+        return
+      }
+      console.log(this.minStep)
     },
     getDistance (start, end) {
       if (typeof (Number.prototype.toRad) === 'undefined') {
@@ -278,16 +329,15 @@ export default {
   .geofencesArea{
     left: 0;
     float: left;
-    z-index: 999999;
+    z-index: 9999;
     background: transparent;
     opacity: .94;
+
   }
   .popup {
-    padding: 12px 20px;
-    margin: 8px 0;
-    box-sizing: border-box;
     border: 2px solid gray;
-    border-radius: 4px;
+    height:30px;
+    width:50px;
   }
 
   .slide-fade-enter-active {
@@ -303,9 +353,6 @@ export default {
   .transparent {
     background-color: transparent!important;
     border-color: transparent!important;
-  }
-  .flex {
-    display: flex;
   }
 
 </style>

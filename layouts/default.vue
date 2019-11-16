@@ -6,6 +6,7 @@
       :clipped="clipped"
       fixed
       app
+      class="menu"
     >
       <v-list>
         <v-list-item
@@ -30,32 +31,9 @@
       app
     >
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-      <v-btn
-        @click.stop="miniVariant = !miniVariant"
-        icon
-      >
-        <v-icon>mdi-{{ `chevron-${miniVariant ? 'right' : 'left'}` }}</v-icon>
-      </v-btn>
-      <v-btn
-        @click.stop="clipped = !clipped"
-        icon
-      >
-        <v-icon>mdi-application</v-icon>
-      </v-btn>
-      <v-btn
-        @click.stop="fixed = !fixed"
-        icon
-      >
-        <v-icon>mdi-minus</v-icon>
-      </v-btn>
+
       <v-toolbar-title v-text="title" />
       <v-spacer />
-      <v-btn
-        @click.stop="rightDrawer = !rightDrawer"
-        icon
-      >
-        <v-icon>mdi-menu</v-icon>
-      </v-btn>
     </v-app-bar>
     <v-content>
       <nuxt />
@@ -72,8 +50,8 @@ export default {
       fixed: false,
       items: [
         {
-          icon: 'mdi-apps',
-          title: 'Welcome',
+          icon: 'mdi-material-ui',
+          title: 'Geofence generator',
           to: '/'
         },
         {
@@ -85,8 +63,14 @@ export default {
       miniVariant: false,
       right: true,
       rightDrawer: false,
-      title: 'Vuetify.js'
+      title: 'Poracle Maps'
     }
   }
 }
 </script>
+
+<style scoped>
+.menu {
+  z-index: 99999;
+}
+</style>

@@ -47,7 +47,8 @@ module.exports = {
     '@nuxtjs/axios',
     'nuxt-leaflet',
     'vue-geolocation-api/nuxt',
-    'vue-loading-overlay'
+    'vue-loading-overlay',
+    'vue-number-input'
   ],
 
   geolocation: {

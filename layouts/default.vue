@@ -25,6 +25,7 @@
         </v-list-item>
       </v-list>
     </v-navigation-drawer>
+
     <v-app-bar
       :clipped-left="clipped"
       fixed
@@ -34,6 +35,10 @@
 
       <v-toolbar-title v-text="title" />
       <v-spacer />
+      <v-btn href="https://paypal.me/poraakel" right color="green">
+        DONATE
+        <v-icon>mdi-gift-outline</v-icon>
+      </v-btn>
     </v-app-bar>
     <v-content>
       <nuxt />

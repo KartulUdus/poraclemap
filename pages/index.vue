@@ -53,10 +53,13 @@
           </v-card>
         </transition>
         <!-- End of search results -->
+
         <!-- Beginning of created geofences -->
         <v-card
           class="geofencesArea transparent mx-auto"
           max-width="300"
+          max-height="100%"
+          height="auto"
         >
           <v-list rounded>
             <v-list-item-group color="primary">
@@ -64,20 +67,28 @@
                 ref="myFile"
                 v-on:change="selectedFile()"
                 v-model="files"
+                class="scroll"
                 dense
                 multiple
                 placeholder="Upload existing geofence"
               />
               <v-list-item
                 v-for="fence in geofences"
-                v-bind:key="fence.name"
+                v-bind:key="fence.id"
+                v-on:click="panToGeofence(fence)"
               >
-                <v-list-item-content v-on:click="panToGeofence(fence)" v-text="fence.name" rounded />
+                <v-text-field v-model="fence.name" />
+                <v-list-item-action>
+                  <v-btn icon>
+                    <v-icon v-on:click="removeGeofence(fence.name)" color="grey lighten-1">
+                      mdi-delete-outline
+                    </v-icon>
+                  </v-btn>
+                </v-list-item-action>
               </v-list-item>
             </v-list-item-group>
           </v-list>
         </v-card>
-
         <l-tile-layer url="https://tiles.poracle.world/tile/klokantech-basic/{z}/{x}/{y}/2/png" />
       </l-map>
       <!-- error message snackbar -->
@@ -142,6 +153,7 @@ export default {
       minStep: 50,
       rawAreaLayer: { clearLayers: () => {} },
       rawGeofenceLayer: { clearLayers: () => {} },
+      rawAllAreasLayer: { clearLayers: () => {} },
       showResults: false,
       isLoading: false,
       currentLocation: { lat: 0, lon: 0 }
@@ -274,12 +286,47 @@ export default {
       }
       console.log(this.minStep)
       const coords = this.currentResult.geojson.type === 'Polygon' ? [ this.currentResult.geojson.coordinates ] : this.currentResult.geojson.coordinates
-      let first = tue
-      for (const area of coords){
-        
+      console.log(coords)
+      for (const area in coords) {
+        const path = []
+        const currentLoc = { lat: 0, lon: 0 }
+
+        let tempStep = this.minStep
+        let first = true
+        coords[area][0].forEach((coord) => {
+          if (first || (this.getDistance(currentLoc, { lat: coord[1], lon: coord[0] }) > tempStep)) { // eslint-disable-line
+            path.push([coord[1], coord[0]])
+            tempStep = this.minStep
+          } else {
+            tempStep = tempStep - this.getDistance(currentLoc, { lat: coord[1], lon: coord[0] })
+          }
+          currentLoc.lat = coord[1]
+          currentLoc.lon = coord[0]
+          first = false
+        })
+        let maxId = 0
+        this.geofences.map((obj) => {
+          if (obj.id > maxId) { maxId = obj.id }
+        })
+        console.log(path.length, path.length > 3, 'banana')
+        if (path.length > 3) {
+          this.geofences.push({
+            name: !area ? this.searchString : this.searchString + area,
+            color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+            id: maxId + 1,
+            path
+
+          })
+        }
       }
       this.loading = false
-
+      console.log(this.geofences)
+    },
+    removeGeofence (name) {
+      this.geofences = this.geofences.filter(geofence => geofence.name !== name)
+      this.rawAreaLayer.clearLayers()
+      this.rawGeofenceLayer.clearLayers()
+      this.rawAreaLayer.clearLayers()
     },
     getDistance (start, end) {
       if (typeof (Number.prototype.toRad) === 'undefined') {
@@ -287,7 +334,7 @@ export default {
           return this * Math.PI / 180
         }
       }
-      const earthRadius = 6371 * 1000 // m
+      const earthRadius = 6371 * 1000
       let lat1 = parseFloat(start.lat)
       let lat2 = parseFloat(end.lat)
       const lon1 = parseFloat(start.lon)
@@ -337,6 +384,7 @@ export default {
   .geofencesArea{
     left: 0;
     float: left;
+    overflow-y: scroll;
     z-index: 9999;
     background: transparent;
     opacity: .94;
@@ -361,6 +409,9 @@ export default {
   .transparent {
     background-color: transparent!important;
     border-color: transparent!important;
+  }
+  .scroll {
+    overflow-y: auto;
   }
 
 </style>

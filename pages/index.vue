@@ -136,6 +136,7 @@ import 'vue-loading-overlay/dist/vue-loading.css'
 
 let L = { icon () {} }
 if (process.browser) { L = require('leaflet') }
+
 export default {
   components: {
     Loading

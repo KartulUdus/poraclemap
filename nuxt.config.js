@@ -25,7 +25,7 @@ module.exports = {
   ** Global CSS
   */
   css: [
-    '~/assets/styles.scss'
+    '@/assets/styles.scss'
   ],
   /*
   ** Plugins to load before mounting the App
@@ -47,9 +47,7 @@ module.exports = {
     // Doc: https://axios.nuxtjs.org/usage
     '@nuxtjs/axios',
     'nuxt-leaflet',
-    'vue-geolocation-api/nuxt',
-    'vue-loading-overlay',
-    'vue-number-input'
+    'vue-geolocation-api/nuxt'
   ],
 
   geolocation: {
@@ -66,7 +64,6 @@ module.exports = {
   ** https://github.com/nuxt-community/vuetify-module
   */
   vuetify: {
-    customVariables: ['~/assets/variables.scss'],
     theme: {
       dark: true,
       themes: {

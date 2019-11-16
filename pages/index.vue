@@ -264,6 +264,7 @@ export default {
     },
 
     addGeofence () {
+      this.loading = true
       console.log(this.currentResult)
       if (!this.currentResult.geojson.type || !(this.currentResult.geojson.type === 'Polygon' || this.currentResult.geojson.type === 'MultiPolygon')) {
         console.error('can\'t make a geofence of this result')
@@ -272,6 +273,13 @@ export default {
         return
       }
       console.log(this.minStep)
+      const coords = this.currentResult.geojson.type === 'Polygon' ? [ this.currentResult.geojson.coordinates ] : this.currentResult.geojson.coordinates
+      let first = tue
+      for (const area of coords){
+        
+      }
+      this.loading = false
+
     },
     getDistance (start, end) {
       if (typeof (Number.prototype.toRad) === 'undefined') {

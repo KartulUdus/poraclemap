@@ -2,7 +2,7 @@
   <div id="map-wrap" style="height: 100%;">
     <loading :active.sync="isLoading" :can-cancel="false" />
     <client-only>
-      <l-map id="map" ref="Lmap" :zoom="13" @update:center="updateCenter">
+      <l-map id="map" ref="Lmap" v-on:draw:created="addDrawnFence($event)" :zoom="13" @update:center="updateCenter">
         <v-container fluid class="search">
           <v-row
             class="mb-6"
@@ -25,7 +25,7 @@
               </v-btn>
             </v-col>
             <v-col class="pa-3 search" right md="auto">
-              <v-btn right color="green">
+              <v-btn v-on:click="drawFence()" right color="green">
                 Make geofence
               </v-btn>
             </v-col>
@@ -69,6 +69,13 @@
           <v-list rounded>
             <v-list-item-group color="primary">
               <v-row justify="center">
+                <v-col class="pa-1 search" md="auto">
+                  <v-btn v-on:click="showAllFences('txt')" left color="blue" rounded>
+                    show all
+                  </v-btn>
+                </v-col>
+              </v-row>
+              <v-row justify="center">
                 <v-col class="pa-1 search" right md="auto">
                   <v-btn v-on:click="download('txt')" left color="blue" rounded>
                     get txt
@@ -104,9 +111,6 @@
             </v-list-item-group>
           </v-list>
         </v-card>
-
-        <!-- make geofence button -->
-
         <l-tile-layer url="https://tiles.poracle.world/tile/klokantech-basic/{z}/{x}/{y}/2/png" />
       </l-map>
       <!-- error message snackbar -->
@@ -151,33 +155,14 @@
 import Axios from 'axios'
 import Loading from 'vue-loading-overlay'
 import 'vue-loading-overlay/dist/vue-loading.css'
+import 'leaflet-draw/dist/leaflet.draw.css'
 
 let L = { icon () {} }
 const LDrawToolbar = {}
-let drawControl = {}
-let editableLayers = { clearLayers: () => {} }
 if (process.browser) {
   L = require('leaflet')
   require('leaflet-draw')
   require('leaflet-toolbar')
-
-  editableLayers = new L.FeatureGroup()
-  drawControl = new L.Control.Draw({
-    draw: {
-
-      toolbar: {
-        buttons: {
-          polygon: 'Draw an awesome polygon'
-        }
-      },
-      polygon: false,
-      marker: false
-
-    },
-    edit: {
-      featureGroup: editableLayers
-    }
-  })
 }
 if (process.client) {
   console.log()
@@ -202,8 +187,7 @@ export default {
       rawAreaLayer: { clearLayers: () => {} },
       rawGeofenceLayer: { clearLayers: () => {} },
       rawAllAreasLayer: { clearLayers: () => {} },
-      editableLayers: { clearLayers: () => {} },
-      drawControl,
+      L,
       showResults: false,
       isLoading: false,
       currentLocation: { lat: 0, lon: 0 }
@@ -249,6 +233,53 @@ export default {
 
       document.body.removeChild(element)
     },
+    drawFence () {
+      this.rawAreaLayer.clearLayers()
+      this.rawGeofenceLayer.clearLayers()
+      this.rawAreaLayer.clearLayers()
+      new this.L.Draw.Polygon(this.$refs.Lmap.mapObject, true).enable()
+    },
+    addDrawnFence (res) {
+      if (res.layerType !== 'polygon') { return }
+      const points = res.layer._latlngs[0]
+      let maxId = 0
+      this.geofences.map((obj) => {
+        if (obj.id > maxId) { maxId = obj.id }
+      })
+      const drawnGeofence = {
+        name: `Rename Me${this.geofences.length ? ' ' + this.geofences.length : ''}`,
+        id: maxId + 1,
+        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+        path: points.map(coord => [coord.lat, coord.lng])
+      }
+      this.rawGeofenceLayer = L.geoJSON(L.polygon(drawnGeofence.path).toGeoJSON(), { color: drawnGeofence.color })
+      this.rawGeofenceLayer.addTo(this.$refs.Lmap.mapObject)
+      this.geofences.push(drawnGeofence)
+    },
+    showAllFences () {
+      this.rawAreaLayer.clearLayers()
+      this.rawGeofenceLayer.clearLayers()
+      this.rawAreaLayer.clearLayers()
+      const allCoords = []
+      this.geofences.map(area => allCoords.push(...area.path))
+      const lats = allCoords.map(coords => coords[0])
+      const lons = allCoords.map(coords => coords[1])
+      const maxLat = Math.max(...lats)
+      const minLat = Math.min(...lats)
+      const maxLon = Math.max(...lons)
+      const minLon = Math.min(...lons)
+
+      this.geofences.forEach((geofence) => {
+        this.rawGeofenceLayer = L.geoJSON(L.polygon(geofence.path).toGeoJSON(), { color: geofence.color })
+        this.rawGeofenceLayer.addTo(this.$refs.Lmap.mapObject)
+      })
+
+      if (this.getDistance(this.currentLocation, { lat: minLat, lon: minLon }) > 1000000) { // 1000 km
+        this.$refs.Lmap.mapObject.fitBounds(L.latLngBounds(L.latLng(minLat, minLon), L.latLng(maxLat, maxLon)))
+      } else {
+        this.$refs.Lmap.mapObject.flyToBounds(L.latLngBounds(L.latLng(minLat, minLon), L.latLng(maxLat, maxLon)))
+      }
+    },
     async search () {
       this.$nuxt.$loading.start()
       this.isLoading = true
@@ -263,6 +294,8 @@ export default {
       if (!this.$refs.Lmap) { return }
       this.currentResult = area
       this.rawAreaLayer.clearLayers()
+      this.rawGeofenceLayer.clearLayers()
+      this.rawAreaLayer.clearLayers()
       this.rawAreaLayer = L.geoJSON(area.geojson)
       this.rawAreaLayer.addTo(this.$refs.Lmap.mapObject)
       this.rawAreaLayer.bindPopup(this.$refs.currentAreaPopup)
@@ -276,7 +309,9 @@ export default {
     panToGeofence (geofence) {
       if (!this.$refs.Lmap) { return }
 
+      this.rawAreaLayer.clearLayers()
       this.rawGeofenceLayer.clearLayers()
+      this.rawAreaLayer.clearLayers()
       this.rawGeofenceLayer = L.geoJSON(L.polygon(geofence.path).toGeoJSON(), { color: geofence.color })
       this.rawGeofenceLayer.addTo(this.$refs.Lmap.mapObject)
       this.rawGeofenceLayer.bindPopup('potato')

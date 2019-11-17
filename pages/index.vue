@@ -1,5 +1,5 @@
 <template>
-  <div id="map-wrap" style="height: 100%;">
+  <div id="map-wrap" class="wrapper">
     <loading :active.sync="isLoading" :can-cancel="false" />
     <client-only>
       <l-map id="map" ref="Lmap" v-on:draw:created="addDrawnFence($event)" :zoom="13" @update:center="updateCenter">
@@ -61,92 +61,99 @@
 
         <!-- Beginning of created geofences -->
         <v-card
+          id="geofencesArea"
           class="geofencesArea transparent mx-auto"
           max-width="300"
           max-height="100%"
           height="auto"
+          style="overflow-Y: auto;"
         >
           <v-list rounded>
+            <v-row justify="center">
+              <v-col class="pa-1 search" md="auto">
+                <v-btn v-on:click="showAllFences('txt')" left color="blue" rounded>
+                  show all
+                </v-btn>
+              </v-col>
+            </v-row>
+            <v-row justify="center">
+              <v-col class="pa-1 search" right md="auto">
+                <v-btn v-on:click="download('txt')" left color="blue" rounded>
+                  get txt
+                </v-btn>
+                <v-btn v-on:click="download('json')" right color="blue" rounded>
+                  get json
+                </v-btn>
+              </v-col>
+            </v-row>
+            <v-file-input
+              ref="myFile"
+              v-on:change="selectedFile()"
+              v-model="files"
+              class="pa-1"
+              dense
+              multiple
+              placeholder="Upload existing geofence"
+            />
             <v-list-item-group color="primary">
-              <v-row justify="center">
-                <v-col class="pa-1 search" md="auto">
-                  <v-btn v-on:click="showAllFences('txt')" left color="blue" rounded>
-                    show all
-                  </v-btn>
-                </v-col>
-              </v-row>
-              <v-row justify="center">
-                <v-col class="pa-1 search" right md="auto">
-                  <v-btn v-on:click="download('txt')" left color="blue" rounded>
-                    get txt
-                  </v-btn>
-                  <v-btn v-on:click="download('json')" right color="blue" rounded>
-                    get json
-                  </v-btn>
-                </v-col>
-              </v-row>
-              <v-file-input
-                ref="myFile"
-                v-on:change="selectedFile()"
-                v-model="files"
-                class="scroll"
-                dense
-                multiple
-                placeholder="Upload existing geofence"
-              />
-              <v-list-item
-                v-for="fence in geofences"
-                v-bind:key="fence.id"
-                v-on:click="panToGeofence(fence)"
-              >
-                <v-text-field v-model="fence.name" />
-                <v-list-item-action>
-                  <v-btn icon>
-                    <v-icon v-on:click="removeGeofence(fence.name)" color="grey lighten-1">
-                      mdi-delete-outline
-                    </v-icon>
-                  </v-btn>
-                </v-list-item-action>
-              </v-list-item>
+              <div class="scroll">
+                <v-list-item
+                  v-for="fence in geofences"
+                  v-bind:key="fence.id"
+                  v-on:click="panToGeofence(fence)"
+                  class="pa-1"
+                  style="height: 5px; overflow-y: hidden; padding:0px;"
+                >
+                  <v-text-field v-model="fence.name" />
+                  <v-list-item-action>
+                    <v-btn icon>
+                      <v-icon v-on:click="removeGeofence(fence.name)" color="grey lighten-1">
+                        mdi-delete-outline
+                      </v-icon>
+                    </v-btn>
+                  </v-list-item-action>
+                </v-list-item>
+              </div>
             </v-list-item-group>
           </v-list>
         </v-card>
-        <l-tile-layer url="https://tiles.poracle.world/tile/klokantech-basic/{z}/{x}/{y}/2/png" />
-      </l-map>
-      <!-- error message snackbar -->
-      <v-snackbar
-        v-model="error"
-        :timeout="3000"
-        :top="true"
-        color="red"
-      >
-        {{ errorMsg }}
-        <v-btn
-          @click="snackbar = false"
-          color="black"
-          text
-        >
-          Close
-        </v-btn>
-      </v-snackbar>
 
-      <!-- area popup -->
-      <v-row ref="currentAreaPopup">
-        <v-col>
-          step
-          <input
-            v-model="minStep"
-            :min="0"
-            :max="10000"
-            type="number"
-            class="popup"
-            inline
+        <l-tile-layer url="https://tiles.poracle.world/tile/klokantech-basic/{z}/{x}/{y}/2/png" />
+
+        <!-- area popup -->
+        <v-row ref="currentAreaPopup">
+          <v-col>
+            step
+            <input
+              v-model="minStep"
+              :min="0"
+              :max="10000"
+              type="number"
+              class="popup"
+              inline
+            >
+            <v-btn v-on:click="addGeofence(currentResult)" right>
+              add area
+            </v-btn>
+          </v-col>
+        </v-row>
+        <!-- error message snackbar -->
+        <v-snackbar
+          v-model="error"
+          :timeout="3000"
+          :top="true"
+          color="red"
+        >
+          {{ errorMsg }}
+          <v-btn
+            @click="snackbar = false"
+            color="black"
+            text
           >
-          <v-btn v-on:click="addGeofence(currentResult)" right>
-            add area
+            Close
           </v-btn>
-        </v-col>
-      </v-row>
+        </v-snackbar>
+      </l-map>
     </client-only>
   </div>
 </template>
@@ -158,16 +165,11 @@ import 'vue-loading-overlay/dist/vue-loading.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 
 let L = { icon () {} }
-const LDrawToolbar = {}
 if (process.browser) {
   L = require('leaflet')
   require('leaflet-draw')
   require('leaflet-toolbar')
 }
-if (process.client) {
-  console.log()
-}
-console.log(LDrawToolbar)
 
 export default {
   components: {
@@ -255,6 +257,7 @@ export default {
       this.rawGeofenceLayer = L.geoJSON(L.polygon(drawnGeofence.path).toGeoJSON(), { color: drawnGeofence.color })
       this.rawGeofenceLayer.addTo(this.$refs.Lmap.mapObject)
       this.geofences.push(drawnGeofence)
+      this.mapStopScrolling()
     },
     showAllFences () {
       this.rawAreaLayer.clearLayers()
@@ -280,6 +283,11 @@ export default {
         this.$refs.Lmap.mapObject.flyToBounds(L.latLngBounds(L.latLng(minLat, minLon), L.latLng(maxLat, maxLon)))
       }
     },
+    mapStopScrolling () {
+      console.log('don`\'tscroll')
+      const el = document.getElementById('geofencesArea')
+      this.L.DomEvent.disableScrollPropagation(el)
+    },
     async search () {
       this.$nuxt.$loading.start()
       this.isLoading = true
@@ -299,7 +307,6 @@ export default {
       this.rawAreaLayer = L.geoJSON(area.geojson)
       this.rawAreaLayer.addTo(this.$refs.Lmap.mapObject)
       this.rawAreaLayer.bindPopup(this.$refs.currentAreaPopup)
-      console.log(this.currentLocation, area)
       if (this.getDistance(this.currentLocation, area) > 1000000) { // 1000 km
         this.$refs.Lmap.mapObject.fitBounds(L.latLngBounds(L.latLng(area.boundingbox[0], area.boundingbox[2]), L.latLng(area.boundingbox[1], area.boundingbox[3])))
       } else {
@@ -338,7 +345,6 @@ export default {
       this.isLoading = true
       const file = this.files[0]
       this.isLoading = false
-      console.log(file.type)
       if (!file || !(file.type === 'text/plain' || file.type === 'application/json')) {
         this.errorMsg = 'Can\'t Open file for parsing'
         this.error = true
@@ -379,27 +385,24 @@ export default {
         })
         updFile.filter(area => !this.geofences.find(a => a.name === area.name))
         this.geofences = [...this.geofences, ...updFile]
-        console.log(updFile)
+        this.mapStopScrolling()
       }
       reader.onerror = (evt) => {
         console.error(evt)
-        this.errorMsg = 'geofence file dosn\'t have needed fields'
+        this.errorMsg = 'geofence file unhappy' + evt
         this.error = true
       }
     },
 
     addGeofence () {
       this.loading = true
-      console.log(this.currentResult)
       if (!this.currentResult.geojson.type || !(this.currentResult.geojson.type === 'Polygon' || this.currentResult.geojson.type === 'MultiPolygon')) {
         console.error('can\'t make a geofence of this result')
         this.errorMsg = 'can\'t make a geofence of this result'
         this.error = true
         return
       }
-      console.log(this.minStep)
       const coords = this.currentResult.geojson.type === 'Polygon' ? [ this.currentResult.geojson.coordinates ] : this.currentResult.geojson.coordinates
-      console.log(coords)
       for (const area in coords) {
         const path = []
         const currentLoc = { lat: 0, lon: 0 }
@@ -421,7 +424,6 @@ export default {
         this.geofences.map((obj) => {
           if (obj.id > maxId) { maxId = obj.id }
         })
-        console.log(path.length, path.length > 3, 'banana')
         if (path.length > 3) {
           this.geofences.push({
             name: !area ? this.searchString : this.searchString + area,
@@ -432,8 +434,8 @@ export default {
           })
         }
       }
+      this.mapStopScrolling()
       this.loading = false
-      console.log(this.geofences)
     },
     removeGeofence (name) {
       this.geofences = this.geofences.filter(geofence => geofence.name !== name)
@@ -497,7 +499,6 @@ export default {
   .geofencesArea{
     left: 0;
     float: left;
-    overflow-y: scroll;
     z-index: 9999;
     background: transparent;
     opacity: .94;
@@ -523,15 +524,25 @@ export default {
     background-color: transparent!important;
     border-color: transparent!important;
   }
-  .scroll {
-    overflow-y: auto;
-  }
 
   .makeGeofenceButton {
     z-index: 999999999999999999;
     position:relative;
     float: right;
     right: 2px;
+  }
+  .wrapper {
+    height: 100%;
+    overflow-Y: hidden;
+    position: fixed;
+    left:0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .scroll {
+    overflow-Y: auto;
+    position: relative;
   }
 
 </style>

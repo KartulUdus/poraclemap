@@ -24,6 +24,11 @@
                 Go
               </v-btn>
             </v-col>
+            <v-col class="pa-3 search" right md="auto">
+              <v-btn right color="green">
+                Make geofence
+              </v-btn>
+            </v-col>
           </v-row>
           <span v-if="$geolocation.loading">        Loading location...</span>
           <span v-else-if="!$geolocation.supported">              Geolocation API is not supported</span>
@@ -63,6 +68,16 @@
         >
           <v-list rounded>
             <v-list-item-group color="primary">
+              <v-row justify="center">
+                <v-col class="pa-1 search" right md="auto">
+                  <v-btn v-on:click="download('txt')" left color="blue" rounded>
+                    get txt
+                  </v-btn>
+                  <v-btn v-on:click="download('json')" right color="blue" rounded>
+                    get json
+                  </v-btn>
+                </v-col>
+              </v-row>
               <v-file-input
                 ref="myFile"
                 v-on:change="selectedFile()"
@@ -89,6 +104,9 @@
             </v-list-item-group>
           </v-list>
         </v-card>
+
+        <!-- make geofence button -->
+
         <l-tile-layer url="https://tiles.poracle.world/tile/klokantech-basic/{z}/{x}/{y}/2/png" />
       </l-map>
       <!-- error message snackbar -->
@@ -135,13 +153,42 @@ import Loading from 'vue-loading-overlay'
 import 'vue-loading-overlay/dist/vue-loading.css'
 
 let L = { icon () {} }
-if (process.browser) { L = require('leaflet') }
+const LDrawToolbar = {}
+let drawControl = {}
+let editableLayers = { clearLayers: () => {} }
+if (process.browser) {
+  L = require('leaflet')
+  require('leaflet-draw')
+  require('leaflet-toolbar')
+
+  editableLayers = new L.FeatureGroup()
+  drawControl = new L.Control.Draw({
+    draw: {
+
+      toolbar: {
+        buttons: {
+          polygon: 'Draw an awesome polygon'
+        }
+      },
+      polygon: false,
+      marker: false
+
+    },
+    edit: {
+      featureGroup: editableLayers
+    }
+  })
+}
+if (process.client) {
+  console.log()
+}
+console.log(LDrawToolbar)
 
 export default {
   components: {
     Loading
-  },
 
+  },
   data () {
     return {
       searchString: '',
@@ -155,6 +202,8 @@ export default {
       rawAreaLayer: { clearLayers: () => {} },
       rawGeofenceLayer: { clearLayers: () => {} },
       rawAllAreasLayer: { clearLayers: () => {} },
+      editableLayers: { clearLayers: () => {} },
+      drawControl,
       showResults: false,
       isLoading: false,
       currentLocation: { lat: 0, lon: 0 }
@@ -171,6 +220,34 @@ export default {
     updateCenter (val) {
       this.currentLocation.lat = val.lat
       this.currentLocation.lon = val.lng
+    },
+    download (extension) {
+      const element = document.createElement('a')
+      let text = ''
+
+      if (extension === 'txt') {
+        text = this.geofences.map((area) => {
+          let areastring = `[${area.name}]\n`
+          area.path.forEach((coord) => {
+            areastring = areastring + `${coord[0]},${coord[1]}\n`
+          })
+          return areastring + '\n'
+        }).join('\n')
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text))
+        element.setAttribute('download', 'geofence.txt')
+      } else if (extension === 'json') {
+        text = JSON.stringify(this.geofences, null, '\t')
+
+        element.setAttribute('href', 'data:application/json;charset=utf-8,' + encodeURIComponent(text))
+        element.setAttribute('download', 'geofence.json')
+      }
+
+      element.style.display = 'none'
+      document.body.appendChild(element)
+
+      element.click()
+
+      document.body.removeChild(element)
     },
     async search () {
       this.$nuxt.$loading.start()
@@ -222,11 +299,11 @@ export default {
       if (!this.$refs.Lmap) { return }
       this.$refs.Lmap.mapObject.setView(L.latLng(coords.latitude, coords.longitude), 12)
     },
-
     selectedFile () {
       this.isLoading = true
       const file = this.files[0]
       this.isLoading = false
+      console.log(file.type)
       if (!file || !(file.type === 'text/plain' || file.type === 'application/json')) {
         this.errorMsg = 'Can\'t Open file for parsing'
         this.error = true
@@ -413,6 +490,13 @@ export default {
   }
   .scroll {
     overflow-y: auto;
+  }
+
+  .makeGeofenceButton {
+    z-index: 999999999999999999;
+    position:relative;
+    float: right;
+    right: 2px;
   }
 
 </style>

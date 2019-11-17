@@ -260,6 +260,12 @@ export default {
       this.mapStopScrolling()
     },
     showAllFences () {
+      if (!this.geofences.length) {
+        console.log('no geofences in there')
+        this.errorMsg = 'Add some geofences first'
+        this.error = true
+        return
+      }
       this.rawAreaLayer.clearLayers()
       this.rawGeofenceLayer.clearLayers()
       this.rawAreaLayer.clearLayers()
@@ -426,7 +432,7 @@ export default {
         })
         if (path.length > 3) {
           this.geofences.push({
-            name: !area ? this.searchString : this.searchString + area,
+            name: !area ? this.searchString : (this.searchString + area),
             color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
             id: maxId + 1,
             path

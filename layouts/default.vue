@@ -60,6 +60,11 @@ export default {
           to: '/'
         },
         {
+          icon: 'mdi-fire',
+          title: 'heatmap',
+          to: '/heatmap'
+        },
+        {
           icon: 'mdi-chart-bubble',
           title: 'Inspire',
           to: '/inspire'

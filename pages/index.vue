@@ -370,7 +370,7 @@ export default {
             return locArray.map((line) => {
               const coords = line.split(',')
               return [+coords[0], +coords[1]]
-            })
+            }).filter(x => x[0] && x[1])
           })
           const result = []
           areaNames.forEach((key, idx) => { result.push({ name: key, color: `#${Math.floor(Math.random() * 16777215).toString(16)}`, id: idx.toString(), path: areaLocs[idx] }) })
